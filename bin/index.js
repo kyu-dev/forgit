@@ -15,6 +15,9 @@ import {
   createRandomCommitsInPeriod,
 } from '../lib/commitUtils.js';
 import { execa } from 'execa';
+import path from 'path';
+import os from 'os';
+import fs from 'fs/promises';
 
 async function main() {
   const credentials = await ensureCredentials();
@@ -74,7 +77,7 @@ async function main() {
         message: 'Message de commit:',
         validate: function (value) {
           if (value.trim().length > 0) return true;
-          return 'Le message de commit ne peut pas être vide.';
+          return 'Le message de commit ne peut pas être vue.';
         },
       },
     ]);
@@ -161,6 +164,9 @@ async function main() {
     }
 
     await createDatedCommit(isoCommitDateTime, commitMessage);
+
+    // Sauvegarder la date du commit aléatoire
+    await saveRandomCommitDate(isoCommitDateTime);
   }
 }
 
@@ -205,6 +211,27 @@ async function stageRandomFiles() {
     );
     return false;
   }
+}
+
+// Fonction pour sauvegarder la date du commit aléatoire
+async function saveRandomCommitDate(date) {
+  const randomCommitDatesPath = path.join(
+    os.homedir(),
+    '.forgit-random-commit-dates.json'
+  );
+  let dates = [];
+
+  try {
+    const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
+    dates = JSON.parse(data);
+  } catch (error) {
+    // Si le fichier n'existe pas, on initialise un tableau vide
+  }
+
+  dates.push(date);
+
+  await fs.writeFile(randomCommitDatesPath, JSON.stringify(dates, null, 2));
+  console.log(`Date du commit aléatoire sauvegardée : ${date}`);
 }
 
 main().catch(console.error);

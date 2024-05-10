@@ -24,36 +24,27 @@ async function saveCredentials(username, token) {
 }
 
 async function main() {
-  console.log('Gestion de la configuration de Forgit...');
-  let currentCredentials = await getCredentials();
+  const currentCredentials = await getCredentials();
 
-  if (currentCredentials) {
-    console.log('\nInformations actuelles :');
-    console.log(`  Nom d'utilisateur GitHub : ${currentCredentials.username}`);
-    console.log(
-      `  Token GitHub : ${
-        currentCredentials.token ? '******** (enregistré)' : 'Non défini'
-      }`
-    );
-  } else {
-    console.log(
-      "\nAucune information d'identification n'est actuellement sauvegardée."
-    );
-  }
+  console.log('Configuration actuelle :');
+  console.log(currentCredentials || 'Aucune configuration trouvée.');
 
   const { action } = await inquirer.prompt([
     {
       type: 'list',
       name: 'action',
-      message: '\nQue souhaitez-vous faire ?',
+      message: 'Que souhaitez-vous faire ?',
       choices: [
-        { name: 'Mettre à jour les informations', value: 'update' },
-        { name: 'Ne rien changer', value: 'exit' },
+        { name: 'Modifier les identifiants GitHub', value: 'credentials' },
+        {
+          name: 'Modifier la date du commit aléatoire',
+          value: 'randomCommitDate',
+        },
       ],
     },
   ]);
 
-  if (action === 'update') {
+  if (action === 'credentials') {
     const newCredentials = await inquirer.prompt([
       {
         type: 'input',
@@ -68,8 +59,52 @@ async function main() {
       },
     ]);
     await saveCredentials(newCredentials.username, newCredentials.token);
-  } else {
-    console.log('Aucune modification apportée.');
+  } else if (action === 'randomCommitDate') {
+    const randomCommitDatesPath = path.join(
+      os.homedir(),
+      '.forgit-random-commit-dates.json'
+    );
+    let dates = [];
+
+    try {
+      const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
+      dates = JSON.parse(data);
+    } catch (error) {
+      console.log('Aucune date de commit aléatoire trouvée.');
+      return;
+    }
+
+    const { dateIndex } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'dateIndex',
+        message: 'Choisissez la date à modifier :',
+        choices: dates.map((date, index) => ({
+          name: date,
+          value: index,
+        })),
+      },
+    ]);
+
+    const { newDate } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'newDate',
+        message: 'Nouvelle date (YYYY-MM-DDTHH:MM:SSZ) :',
+        validate: function (value) {
+          const date = new Date(value);
+          if (isValid(date)) return true;
+          return 'Veuillez entrer une date valide au format YYYY-MM-DDTHH:MM:SSZ.';
+        },
+      },
+    ]);
+
+    dates[dateIndex] = newDate;
+
+    await fs.writeFile(randomCommitDatesPath, JSON.stringify(dates, null, 2));
+    console.log(
+      `Date du commit aléatoire mise à jour avec succès : ${newDate}`
+    );
   }
 }
 
