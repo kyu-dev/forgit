@@ -6,10 +6,13 @@ import {
   saveCredentials,
   getRandomCommitPeriod,
   saveRandomCommitPeriod,
+  getMaxCommitsPerDay,
+  saveMaxCommitsPerDay,
 } from '../lib/configUtils.js';
 import {
   promptForCredentials,
   promptForRandomCommitPeriod,
+  promptForMaxCommitsPerDay,
 } from '../lib/cliUtils.js';
 
 async function main() {
@@ -29,6 +32,10 @@ async function main() {
           name: 'Modifier la période de commit aléatoire',
           value: 'randomCommitPeriod',
         },
+        {
+          name: 'Modifier le nombre maximum de commits par jour',
+          value: 'maxCommitsPerDay',
+        },
       ],
     },
   ]);
@@ -40,6 +47,10 @@ async function main() {
     const period = await getRandomCommitPeriod();
     const newPeriod = await promptForRandomCommitPeriod(period);
     await saveRandomCommitPeriod(newPeriod);
+  } else if (action === 'maxCommitsPerDay') {
+    const maxCommits = await getMaxCommitsPerDay();
+    const newMaxCommits = await promptForMaxCommitsPerDay();
+    await saveMaxCommitsPerDay(newMaxCommits.maxCommits);
   }
 }
 
