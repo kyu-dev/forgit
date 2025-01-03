@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { parseISO, formatISO } from 'date-fns';
 
 const credentialsPath = path.join(os.homedir(), '.forgit-credentials');
 
@@ -37,8 +38,8 @@ async function main() {
       choices: [
         { name: 'Modifier les identifiants GitHub', value: 'credentials' },
         {
-          name: 'Modifier la date du commit aléatoire',
-          value: 'randomCommitDate',
+          name: 'Modifier la période de commit aléatoire',
+          value: 'randomCommitPeriod',
         },
       ],
     },
@@ -59,51 +60,64 @@ async function main() {
       },
     ]);
     await saveCredentials(newCredentials.username, newCredentials.token);
-  } else if (action === 'randomCommitDate') {
+  } else if (action === 'randomCommitPeriod') {
     const randomCommitDatesPath = path.join(
       os.homedir(),
       '.forgit-random-commit-dates.json'
     );
-    let dates = [];
+    let period = null;
 
     try {
       const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
-      dates = JSON.parse(data);
+      period = JSON.parse(data);
     } catch (error) {
-      console.log('Aucune date de commit aléatoire trouvée.');
-      return;
+      console.log('Aucune période de commit aléatoire trouvée.');
     }
 
-    const { dateIndex } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'dateIndex',
-        message: 'Choisissez la date à modifier :',
-        choices: dates.map((date, index) => ({
-          name: date,
-          value: index,
-        })),
-      },
-    ]);
+    if (!period) {
+      period = {
+        startDate: '',
+        endDate: '',
+      };
+    }
 
-    const { newDate } = await inquirer.prompt([
+    const newPeriod = await inquirer.prompt([
       {
         type: 'input',
-        name: 'newDate',
-        message: 'Nouvelle date (YYYY-MM-DDTHH:MM:SSZ) :',
+        name: 'startDate',
+        message: 'Nouvelle date de début (YYYY-MM-DD) :',
+        default: period.startDate,
         validate: function (value) {
-          const date = new Date(value);
+          const date = parseISO(value);
           if (isValid(date)) return true;
-          return 'Veuillez entrer une date valide au format YYYY-MM-DDTHH:MM:SSZ.';
+          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
+        },
+        filter: function (value) {
+          return formatISO(parseISO(value), { representation: 'date' });
+        },
+      },
+      {
+        type: 'input',
+        name: 'endDate',
+        message: 'Nouvelle date de fin (YYYY-MM-DD) :',
+        default: period.endDate,
+        validate: function (value) {
+          const date = parseISO(value);
+          if (isValid(date)) return true;
+          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
+        },
+        filter: function (value) {
+          return formatISO(parseISO(value), { representation: 'date' });
         },
       },
     ]);
 
-    dates[dateIndex] = newDate;
-
-    await fs.writeFile(randomCommitDatesPath, JSON.stringify(dates, null, 2));
+    await fs.writeFile(
+      randomCommitDatesPath,
+      JSON.stringify(newPeriod, null, 2)
+    );
     console.log(
-      `Date du commit aléatoire mise à jour avec succès : ${newDate}`
+      `Période de commit aléatoire mise à jour avec succès : ${newPeriod.startDate} - ${newPeriod.endDate}`
     );
   }
 }

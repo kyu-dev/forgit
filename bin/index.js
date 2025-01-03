@@ -77,7 +77,7 @@ async function main() {
         message: 'Message de commit:',
         validate: function (value) {
           if (value.trim().length > 0) return true;
-          return 'Le message de commit ne peut pas être vue.';
+          return 'Le message de commit ne peut pas être vide.';
         },
       },
     ]);
@@ -104,34 +104,59 @@ async function main() {
       '\nMode: Commit unique à une date aléatoire avec message personnalisé.'
     );
 
-    const periodAnswers = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'startDate',
-        message: 'Date de début (YYYY-MM-DD) pour la période aléatoire:',
-        validate: function (value) {
-          const date = datefnsParseISO(value);
-          if (isValid(date)) return true;
-          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
+    // Charger la période aléatoire si elle existe déjà
+    const randomCommitDatesPath = path.join(
+      os.homedir(),
+      '.forgit-random-commit-dates.json'
+    );
+    let period = null;
+
+    try {
+      const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
+      period = JSON.parse(data);
+    } catch (error) {
+      console.log('Aucune période de commit aléatoire trouvée.');
+    }
+
+    if (!period) {
+      period = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'startDate',
+          message: 'Date de début (YYYY-MM-DD) pour la période aléatoire:',
+          validate: function (value) {
+            const date = datefnsParseISO(value);
+            if (isValid(date)) return true;
+            return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
+          },
+          filter: function (value) {
+            return formatISO(datefnsParseISO(value), {
+              representation: 'date',
+            });
+          },
         },
-        filter: function (value) {
-          return formatISO(datefnsParseISO(value), { representation: 'date' });
+        {
+          type: 'input',
+          name: 'endDate',
+          message: 'Date de fin (YYYY-MM-DD) pour la période aléatoire:',
+          validate: function (value) {
+            const date = datefnsParseISO(value);
+            if (isValid(date)) return true;
+            return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
+          },
+          filter: function (value) {
+            return formatISO(datefnsParseISO(value), {
+              representation: 'date',
+            });
+          },
         },
-      },
-      {
-        type: 'input',
-        name: 'endDate',
-        message: 'Date de fin (YYYY-MM-DD) pour la période aléatoire:',
-        validate: function (value) {
-          const date = datefnsParseISO(value);
-          if (isValid(date)) return true;
-          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
-        },
-        filter: function (value) {
-          return formatISO(datefnsParseISO(value), { representation: 'date' });
-        },
-      },
-    ]);
+      ]);
+
+      await fs.writeFile(
+        randomCommitDatesPath,
+        JSON.stringify(period, null, 2)
+      );
+    }
 
     const { commitMessage } = await inquirer.prompt([
       {
@@ -145,8 +170,8 @@ async function main() {
       },
     ]);
 
-    const startDate = datefnsParseISO(periodAnswers.startDate);
-    const endDate = datefnsParseISO(periodAnswers.endDate);
+    const startDate = datefnsParseISO(period.startDate);
+    const endDate = datefnsParseISO(period.endDate);
 
     const randomDate = new Date(
       startDate.getTime() +
@@ -164,9 +189,6 @@ async function main() {
     }
 
     await createDatedCommit(isoCommitDateTime, commitMessage);
-
-    // Sauvegarder la date du commit aléatoire
-    await saveRandomCommitDate(isoCommitDateTime);
   }
 }
 
