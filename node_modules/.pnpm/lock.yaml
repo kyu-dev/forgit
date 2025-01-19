@@ -14,6 +14,9 @@ importers:
       execa:
         specifier: ^9.5.3
         version: 9.5.3
+      forgit:
+        specifier: ^1.0.0
+        version: 1.0.0
       inquirer:
         specifier: ^12.6.1
         version: 12.6.1
@@ -206,6 +209,10 @@ packages:
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
     engines: {node: '>=18'}
+
+  forgit@1.0.0:
+    resolution: {integrity: sha512-cTa7vdyBrIsuji9TObURqwf/JNB92sZqVZc0FX7Fb+0NBzDL2vUZl6BvM++GRo3dlUdkN8b6D3Bq+rbck7j+Dw==}
+    hasBin: true
 
   formdata-polyfill@4.0.10:
     resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
@@ -515,6 +522,15 @@ snapshots:
   figures@6.1.0:
     dependencies:
       is-unicode-supported: 2.1.0
+
+  forgit@1.0.0:
+    dependencies:
+      date-fns: 4.1.0
+      execa: 9.5.3
+      inquirer: 12.6.1
+      node-fetch: 3.3.2
+    transitivePeerDependencies:
+      - '@types/node'
 
   formdata-polyfill@4.0.10:
     dependencies:
