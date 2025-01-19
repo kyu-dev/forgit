@@ -1,28 +1,16 @@
 #!/usr/bin/env node
 
 import inquirer from 'inquirer';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { parseISO, formatISO, isValid } from 'date-fns';
-
-const credentialsPath = path.join(os.homedir(), '.forgit-credentials');
-
-async function getCredentials() {
-  try {
-    const credentialsData = await fs.readFile(credentialsPath, 'utf-8');
-    return JSON.parse(credentialsData);
-  } catch (error) {
-    // Si le fichier n'existe pas ou ne peut être lu, retourne null
-    return null;
-  }
-}
-
-async function saveCredentials(username, token) {
-  const credentials = JSON.stringify({ username, token });
-  await fs.writeFile(credentialsPath, credentials, 'utf-8');
-  console.log("Informations d'identification mises à jour avec succès !");
-}
+import {
+  getCredentials,
+  saveCredentials,
+  getRandomCommitPeriod,
+  saveRandomCommitPeriod,
+} from '../lib/configUtils.js';
+import {
+  promptForCredentials,
+  promptForRandomCommitPeriod,
+} from '../lib/cliUtils.js';
 
 async function main() {
   const currentCredentials = await getCredentials();
@@ -46,79 +34,12 @@ async function main() {
   ]);
 
   if (action === 'credentials') {
-    const newCredentials = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'username',
-        message: "Nouveau nom d'utilisateur GitHub :",
-        default: currentCredentials?.username,
-      },
-      {
-        type: 'password',
-        name: 'token',
-        message: "Nouveau token d'accès personnel GitHub :",
-      },
-    ]);
+    const newCredentials = await promptForCredentials(currentCredentials);
     await saveCredentials(newCredentials.username, newCredentials.token);
   } else if (action === 'randomCommitPeriod') {
-    const randomCommitDatesPath = path.join(
-      os.homedir(),
-      '.forgit-random-commit-dates.json'
-    );
-    let period = null;
-
-    try {
-      const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
-      period = JSON.parse(data);
-    } catch (error) {
-      console.log('Aucune période de commit aléatoire trouvée.');
-    }
-
-    if (!period) {
-      period = {
-        startDate: '',
-        endDate: '',
-      };
-    }
-
-    const newPeriod = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'startDate',
-        message: 'Nouvelle date de début (YYYY-MM-DD) :',
-        default: period.startDate,
-        validate: function (value) {
-          const date = parseISO(value);
-          if (isValid(date)) return true;
-          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
-        },
-        filter: function (value) {
-          return formatISO(parseISO(value), { representation: 'date' });
-        },
-      },
-      {
-        type: 'input',
-        name: 'endDate',
-        message: 'Nouvelle date de fin (YYYY-MM-DD) :',
-        default: period.endDate,
-        validate: function (value) {
-          const date = parseISO(value);
-          if (isValid(date)) return true;
-          return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
-        },
-        filter: function (value) {
-          return formatISO(parseISO(value), { representation: 'date' });
-        },
-      },
-    ]);
-
-    await fs.writeFile(
-      randomCommitDatesPath,
-      JSON.stringify(newPeriod, null, 2)
-    );
-    console.log(
-      `Période de commit aléatoire mise à jour avec succès : ${newPeriod.startDate} - ${newPeriod.endDate}`
-    );
+    const period = await getRandomCommitPeriod();
+    const newPeriod = await promptForRandomCommitPeriod(period);
+    await saveRandomCommitPeriod(newPeriod);
   }
 }
 

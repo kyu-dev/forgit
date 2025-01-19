@@ -4,12 +4,7 @@
 import inquirer from 'inquirer';
 import { fetchGitHubContributions } from '../lib/github.js';
 import { ensureCredentials } from '../lib/auth.js';
-import {
-  parse,
-  isValid,
-  formatISO,
-  parseISO as datefnsParseISO,
-} from 'date-fns';
+import { parse, isValid, formatISO, parseISO } from 'date-fns';
 import {
   createDatedCommit,
   createRandomCommitsInPeriod,
@@ -18,6 +13,9 @@ import { execa } from 'execa';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
+import { getRandomCommitPeriod } from '../lib/configUtils.js';
+import { getRandomTimeForCommit } from '../lib/dateUtils.js';
+import { checkStagedFiles, stageRandomFiles } from '../lib/gitUtils.js';
 
 async function main() {
   const credentials = await ensureCredentials();
@@ -89,7 +87,6 @@ async function main() {
     );
     const isoCommitDateTime = formatISO(targetDate);
 
-    // Vérifier s'il y a des fichiers stagés
     const hasStagedFiles = await checkStagedFiles();
     if (!hasStagedFiles) {
       console.log(
@@ -104,20 +101,7 @@ async function main() {
       '\nMode: Commit unique à une date aléatoire avec message personnalisé.'
     );
 
-    // Charger la période aléatoire si elle existe déjà
-    const randomCommitDatesPath = path.join(
-      os.homedir(),
-      '.forgit-random-commit-dates.json'
-    );
-    let period = null;
-
-    try {
-      const data = await fs.readFile(randomCommitDatesPath, 'utf-8');
-      period = JSON.parse(data);
-    } catch (error) {
-      console.log('Aucune période de commit aléatoire trouvée.');
-    }
-
+    let period = await getRandomCommitPeriod();
     if (!period) {
       period = await inquirer.prompt([
         {
@@ -125,12 +109,12 @@ async function main() {
           name: 'startDate',
           message: 'Date de début (YYYY-MM-DD) pour la période aléatoire:',
           validate: function (value) {
-            const date = datefnsParseISO(value);
+            const date = parseISO(value);
             if (isValid(date)) return true;
             return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
           },
           filter: function (value) {
-            return formatISO(datefnsParseISO(value), {
+            return formatISO(parseISO(value), {
               representation: 'date',
             });
           },
@@ -140,22 +124,19 @@ async function main() {
           name: 'endDate',
           message: 'Date de fin (YYYY-MM-DD) pour la période aléatoire:',
           validate: function (value) {
-            const date = datefnsParseISO(value);
+            const date = parseISO(value);
             if (isValid(date)) return true;
             return 'Veuillez entrer une date valide au format YYYY-MM-DD.';
           },
           filter: function (value) {
-            return formatISO(datefnsParseISO(value), {
+            return formatISO(parseISO(value), {
               representation: 'date',
             });
           },
         },
       ]);
 
-      await fs.writeFile(
-        randomCommitDatesPath,
-        JSON.stringify(period, null, 2)
-      );
+      await saveRandomCommitPeriod(period);
     }
 
     const { commitMessage } = await inquirer.prompt([
@@ -170,16 +151,17 @@ async function main() {
       },
     ]);
 
-    const startDate = datefnsParseISO(period.startDate);
-    const endDate = datefnsParseISO(period.endDate);
+    const startDate = parseISO(period.startDate);
+    const endDate = parseISO(period.endDate);
 
-    const randomDate = new Date(
-      startDate.getTime() +
-        Math.random() * (endDate.getTime() - startDate.getTime())
+    const randomDate = getRandomTimeForCommit(
+      new Date(
+        startDate.getTime() +
+          Math.random() * (endDate.getTime() - startDate.getTime())
+      )
     );
     const isoCommitDateTime = formatISO(randomDate);
 
-    // Vérifier s'il y a des fichiers stagés
     const hasStagedFiles = await checkStagedFiles();
     if (!hasStagedFiles) {
       console.log(
@@ -192,51 +174,8 @@ async function main() {
   }
 }
 
-// Fonction pour vérifier s'il y a des fichiers stagés
-async function checkStagedFiles() {
-  try {
-    const { stdout } = await execa('git', ['diff', '--cached', '--name-only']);
-    return stdout.trim().length > 0;
-  } catch (error) {
-    console.error(
-      'Erreur lors de la vérification des fichiers stagés:',
-      error.stderr || error.message
-    );
-    return false;
-  }
-}
-
-// Fonction pour stager des fichiers aléatoires
-async function stageRandomFiles() {
-  try {
-    // Récupère la liste des fichiers modifiés ou non suivis
-    const { stdout } = await execa('git', ['status', '--porcelain']);
-    const files = stdout
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => line.substring(3)); // Supprime le statut (ex: " M ")
-
-    if (files.length === 0) {
-      console.log('Aucun fichier disponible pour le staging.');
-      return false;
-    }
-
-    // Choisit un fichier aléatoire
-    const randomFile = files[Math.floor(Math.random() * files.length)];
-    await execa('git', ['add', randomFile]);
-    console.log(`  Fichier "${randomFile}" stagé aléatoirement.`);
-    return true;
-  } catch (error) {
-    console.error(
-      'Erreur lors du staging aléatoire:',
-      error.stderr || error.message
-    );
-    return false;
-  }
-}
-
 // Fonction pour sauvegarder la date du commit aléatoire
-async function saveRandomCommitDate(date) {
+async function saveRandomCommitPeriod(period) {
   const randomCommitDatesPath = path.join(
     os.homedir(),
     '.forgit-random-commit-dates.json'
@@ -250,10 +189,12 @@ async function saveRandomCommitDate(date) {
     // Si le fichier n'existe pas, on initialise un tableau vide
   }
 
-  dates.push(date);
+  dates.push(period);
 
   await fs.writeFile(randomCommitDatesPath, JSON.stringify(dates, null, 2));
-  console.log(`Date du commit aléatoire sauvegardée : ${date}`);
+  console.log(
+    `Date du commit aléatoire sauvegardée : ${JSON.stringify(period)}`
+  );
 }
 
 main().catch(console.error);
