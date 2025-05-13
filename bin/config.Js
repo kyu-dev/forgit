@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { parseISO, formatISO } from 'date-fns';
+import { parseISO, formatISO, isValid } from 'date-fns';
 
 const credentialsPath = path.join(os.homedir(), '.forgit-credentials');
 
