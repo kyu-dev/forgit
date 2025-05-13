@@ -28,7 +28,7 @@ export const fetchGitHubContributions = async (username, token) => {
   });
 
   const data = await res.json();
-  console.log(JSON.stringify(data, null, 2));
+  return data;
 };
 
 export default fetchGitHubContributions;
