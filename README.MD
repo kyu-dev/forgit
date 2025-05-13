@@ -1,4 +1,4 @@
-# 🕳️ ReGit
+# 🕳️ FORGIT
 
 > **Fais danser le temps avec Git.**  
 > Un CLI qui te permet de récupérer tes contributions GitHub et de committer _dans le passé_ — parce que pourquoi pas.
